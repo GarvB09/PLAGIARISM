@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PlagScan AI — Detector</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --surface2: #1a1a24;
+      --border: #2a2a3a;
+      --accent: #7c5cfc;
+      --accent2: #e85d75;
+      --accent3: #3ecf8e;
+      --text: #e8e8f0;
+      --muted: #6b6b80;
+      --score-green: #3ecf8e;
+      --score-yellow: #f5c842;
+      --score-red: #e85d75;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 20% 10%, rgba(124,92,252,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 85% 80%, rgba(232,93,117,0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    header {
+      padding: 36px 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.5px;
+    }
+
+    .logo span { color: var(--accent); }
+
+    .badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      background: rgba(124,92,252,0.15);
+      border: 1px solid rgba(124,92,252,0.3);
+      color: var(--accent);
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    /* Hero */
+    .hero {
+      padding: 56px 0 40px;
+      text-align: center;
+    }
+
+    .hero h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(36px, 6vw, 60px);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -1.5px;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 .highlight {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      color: var(--muted);
+      font-size: 16px;
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* Main card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    .card-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      line-height: 1.7;
+      padding: 16px;
+      resize: vertical;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--muted); }
+
+    .optional-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 640px) {
+      .optional-grid { grid-template-columns: 1fr; }
+    }
+
+    .optional-section label {
+      display: block;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    /* Buttons */
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 28px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #9b7dff);
+      color: white;
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(124,92,252,0.35); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn-secondary {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .btn-secondary:hover { border-color: var(--accent); color: var(--text); }
+
+    /* Loading */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 48px;
+    }
+
+    .loading.show { display: block; }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading p {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* Results */
+    #results { display: none; }
+    #results.show { display: block; }
+
+    .results-header {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .score-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+
+    .score-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 12px 12px 0 0;
+    }
+
+    .score-card.green::before { background: var(--score-green); }
+    .score-card.yellow::before { background: var(--score-yellow); }
+    .score-card.red::before { background: var(--score-red); }
+    .score-card.purple::before { background: var(--accent); }
+    .score-card.na::before { background: var(--border); }
+
+    .score-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .score-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 40px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .score-card.green .score-value { color: var(--score-green); }
+    .score-card.yellow .score-value { color: var(--score-yellow); }
+    .score-card.red .score-value { color: var(--score-red); }
+    .score-card.purple .score-value { color: var(--accent); }
+    .score-card.na .score-value { color: var(--muted); font-size: 24px; }
+
+    .score-verdict {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    /* Progress bar */
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: var(--border);
+      border-radius: 4px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 1s ease;
+    }
+
+    .green .progress-fill { background: var(--score-green); }
+    .yellow .progress-fill { background: var(--score-yellow); }
+    .red .progress-fill { background: var(--score-red); }
+    .purple .progress-fill { background: var(--accent); }
+
+    /* Conclusion */
+    .conclusion-box {
+      background: rgba(124,92,252,0.07);
+      border: 1px solid rgba(124,92,252,0.2);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+
+    .conclusion-box .label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--accent);
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .conclusion-box p {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--text);
+    }
+
+    /* Features + Reasons grid */
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 640px) {
+      .details-grid { grid-template-columns: 1fr; }
+    }
+
+    .detail-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .detail-card h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      color: var(--text);
+    }
+
+    .feature-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .feature-row:last-child { border-bottom: none; }
+    .feature-name { color: var(--muted); }
+    .feature-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .reason-item {
+      font-size: 13px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      line-height: 1.5;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .reason-item:last-child { border-bottom: none; }
+
+    .reason-icon { flex-shrink: 0; margin-top: 1px; }
+
+    /* Plagiarism detail */
+    .plag-detail {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .plag-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      flex: 1;
+      text-align: center;
+    }
+
+    .plag-chip .chip-label { color: var(--muted); font-size: 10px; display: block; margin-bottom: 4px; }
+    .plag-chip .chip-val { color: var(--text); font-size: 16px; font-weight: 500; }
+
+    /* Error */
+    .error-box {
+      background: rgba(232,93,117,0.08);
+      border: 1px solid rgba(232,93,117,0.3);
+      border-radius: 10px;
+      padding: 16px 20px;
+      color: var(--score-red);
+      font-size: 14px;
+      display: none;
+    }
+
+    .error-box.show { display: block; }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 40px 0;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">Plag<span>Scan</span> AI</div>
+    <div class="badge">Python v2.0</div>
+  </header>
+
+  <div class="hero">
+    <h1>Detect <span class="highlight">AI & Plagiarism</span><br>in Any Text</h1>
+    <p>Advanced linguistic analysis using Jaccard similarity, cosine similarity, stylometry, and AI feature scoring.</p>
+  </div>
+
+  <!-- Input Card -->
+  <div class="card">
+    <div class="card-label">Main Text</div>
+    <textarea id="mainText" rows="8" placeholder="Paste the text you want to analyze here. For best results, use 100+ words..."></textarea>
+
+    <div class="optional-grid">
+      <div class="optional-section">
+        <label>REFERENCE TEXT (for plagiarism check)</label>
+        <textarea id="referenceText" rows="5" placeholder="Optional: paste source text to compare against..."></textarea>
+      </div>
+      <div class="optional-section">
+        <label>PREVIOUS WRITING (for authorship check)</label>
+        <textarea id="userHistory" rows="5" placeholder="Optional: paste known writing samples from the same author..."></textarea>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="analyze()" id="analyzeBtn">Analyze Text</button>
+      <button class="btn btn-secondary" onclick="loadSample()">Load Sample</button>
+      <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>Analyzing linguistic patterns...</p>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+    <div class="card">
+      <div class="results-header">Analysis Results</div>
+
+      <!-- Score cards -->
+      <div class="score-grid" id="scoreGrid"></div>
+
+      <!-- Plagiarism detail -->
+      <div id="plagDetail" style="display:none" class="card" style="margin-top:0">
+        <div class="card-label">Plagiarism Similarity Breakdown</div>
+        <div class="plag-detail" id="plagDetailInner"></div>
+      </div>
+
+      <!-- Conclusion -->
+      <div class="conclusion-box">
+        <div class="label">CONCLUSION</div>
+        <p id="conclusionText"></p>
+      </div>
+
+      <!-- Features + Reasons -->
+      <div class="details-grid">
+        <div class="detail-card">
+          <h3>📊 Linguistic Features</h3>
+          <div id="featuresTable"></div>
+        </div>
+        <div class="detail-card">
+          <h3>🔍 Analysis Reasons</h3>
+          <div id="reasonsList"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>PlagScan AI — Python Edition &nbsp;·&nbsp; Built with Flask + NLP</footer>
+
+</div>
+
+<script>
+  const SAMPLE_TEXT = `Artificial intelligence has revolutionized the way we approach complex problems. Machine learning algorithms demonstrate remarkable capabilities in pattern recognition and data analysis. Furthermore, AI integration into various industries significantly improves operational efficiency. However, ethical implications of widespread AI adoption require careful consideration from policymakers and researchers. Nevertheless, the benefits continue to drive innovation across multiple sectors. The systematic approach to problem-solving that AI enables has transformed decision-making processes in healthcare, finance, and education. Moreover, natural language processing has made human-computer interaction more intuitive and accessible than ever before.`;
+
+  const SAMPLE_REFERENCE = `Artificial intelligence has changed how we tackle difficult problems. Machine learning shows impressive abilities in recognizing patterns and analyzing data. Furthermore, incorporating AI into industries boosts efficiency considerably. However, the ethical concerns of widespread AI use need careful attention from policymakers. Nevertheless, advantages keep pushing innovation forward in many areas.`;
+
+  function loadSample() {
+    document.getElementById('mainText').value = SAMPLE_TEXT;
+    document.getElementById('referenceText').value = SAMPLE_REFERENCE;
+  }
+
+  function clearAll() {
+    ['mainText','referenceText','userHistory'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('errorBox').classList.remove('show');
+  }
+
+  function getScoreClass(score, type) {
+    if (type === 'ai') {
+      if (score < 35) return 'green';
+      if (score < 65) return 'yellow';
+      return 'red';
+    }
+    if (type === 'plagiarism') {
+      if (score < 30) return 'green';
+      if (score < 60) return 'yellow';
+      return 'red';
+    }
+    if (type === 'authorship') {
+      if (score > 70) return 'green';
+      if (score > 40) return 'yellow';
+      return 'red';
+    }
+    return 'purple';
+  }
+
+  function getVerdict(score, type) {
+    if (type === 'ai') {
+      if (score < 35) return '✓ Human-written';
+      if (score < 65) return '⚠ Possibly AI-assisted';
+      return '✗ Likely AI-generated';
+    }
+    if (type === 'plagiarism') {
+      if (score < 30) return '✓ Original content';
+      if (score < 60) return '⚠ Moderate similarity';
+      return '✗ High plagiarism risk';
+    }
+    if (type === 'authorship') {
+      if (score > 70) return '✓ Writing style matches';
+      if (score > 40) return '⚠ Partial style match';
+      return '✗ Style mismatch';
+    }
+    return '';
+  }
+
+  function buildScoreCard(label, score, type, extra) {
+    if (score === null || score === undefined) {
+      return `<div class="score-card na">
+        <div class="score-label">${label}</div>
+        <div class="score-value">N/A</div>
+        <div class="score-verdict">Not analyzed</div>
+      </div>`;
+    }
+    const cls = getScoreClass(score, type);
+    const verdict = extra || getVerdict(score, type);
+    return `<div class="score-card ${cls}">
+      <div class="score-label">${label}</div>
+      <div class="score-value">${Math.round(score)}</div>
+      <div class="score-verdict">${verdict}</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${score}%"></div></div>
+    </div>`;
+  }
+
+  async function analyze() {
+    const text = document.getElementById('mainText').value.trim();
+    const referenceText = document.getElementById('referenceText').value.trim();
+    const userHistory = document.getElementById('userHistory').value.trim();
+
+    if (!text) {
+      showError('Please enter some text to analyze.');
+      return;
+    }
+
+    document.getElementById('errorBox').classList.remove('show');
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('loading').classList.add('show');
+    document.getElementById('analyzeBtn').disabled = true;
+
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, referenceText: referenceText || undefined, userHistory: userHistory || undefined })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError(data.error || 'Analysis failed.');
+        return;
+      }
+
+      renderResults(data);
+    } catch (err) {
+      showError('Could not connect to the server. Is Flask running on port 5000?');
+    } finally {
+      document.getElementById('loading').classList.remove('show');
+      document.getElementById('analyzeBtn').disabled = false;
+    }
+  }
+
+  function renderResults(data) {
+    // Score cards
+    const grid = document.getElementById('scoreGrid');
+    grid.innerHTML =
+      buildScoreCard('AI Score', data.ai_score, 'ai', `Confidence: ${data.ai_confidence}`) +
+      buildScoreCard('Plagiarism Score', data.plagiarism_score, 'plagiarism') +
+      buildScoreCard('Authorship Score', data.authorship_score, 'authorship', data.authorship_verdict ? `Verdict: ${data.authorship_verdict}` : null);
+
+    // Plagiarism detail
+    if (data.plagiarism_details) {
+      document.getElementById('plagDetail').style.display = 'block';
+      document.getElementById('plagDetailInner').innerHTML = `
+        <div class="plag-chip"><span class="chip-label">JACCARD</span><span class="chip-val">${data.plagiarism_details.jaccard_similarity}%</span></div>
+        <div class="plag-chip"><span class="chip-label">COSINE</span><span class="chip-val">${data.plagiarism_details.cosine_similarity}%</span></div>
+        <div class="plag-chip"><span class="chip-label">COMBINED</span><span class="chip-val">${data.plagiarism_details.combined_score}%</span></div>
+      `;
+    } else {
+      document.getElementById('plagDetail').style.display = 'none';
+    }
+
+    // Conclusion
+    document.getElementById('conclusionText').textContent = data.conclusion;
+
+    // Features
+    const featureLabels = {
+      avg_sentence_length: 'Avg Sentence Length',
+      vocabulary_diversity: 'Vocabulary Diversity',
+      transition_word_freq: 'Transition Word Freq',
+      repetition_score: 'Repetition Score',
+      perplexity_score: 'Perplexity Score'
+    };
+    const ftable = document.getElementById('featuresTable');
+    ftable.innerHTML = Object.entries(data.features).map(([k, v]) =>
+      `<div class="feature-row">
+        <span class="feature-name">${featureLabels[k] || k}</span>
+        <span class="feature-val">${v}</span>
+      </div>`
+    ).join('');
+
+    // Reasons
+    const rlist = document.getElementById('reasonsList');
+    rlist.innerHTML = data.reasons.map(r => {
+      const icon = r.startsWith('✓') ? '🟢' : r.startsWith('✗') ? '🔴' : r.includes('human') || r.includes('natural') ? '🟢' : '🟡';
+      return `<div class="reason-item"><span class="reason-icon">${icon}</span><span>${r}</span></div>`;
+    }).join('');
+
+    document.getElementById('results').classList.add('show');
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('errorBox');
+    box.textContent = '⚠ ' + msg;
+    box.classList.add('show');
+    document.getElementById('loading').classList.remove('show');
+    document.getElementById('analyzeBtn').disabled = false;
+  }
+</script>
+</body>
+</html>
